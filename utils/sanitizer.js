@@ -1,22 +1,19 @@
+const DOMPurify = require('isomorphic-dompurify');
+
 function sanitizeHTML(input) {
   if (!input || typeof input !== 'string') {
     return input;
   }
-
-  // Basic XSS protection - removes script tags
-  // WARNING: This is incomplete and doesn't cover all XSS vectors!
-  let sanitized = input.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-
-  return sanitized;
+  // Fixed: Use proper HTML sanitization library
+  return DOMPurify.sanitize(input);
 }
 
 function sanitizeFilename(filename) {
   if (!filename || typeof filename !== 'string') {
     return '';
   }
-
-  // Remove directory traversal attempts
-  return filename.replace(/\.\./g, '');
+  // Fixed: Properly sanitize filename
+  return filename.replace(/[^a-zA-Z0-9_.-]/g, '');
 }
 
 module.exports = {
