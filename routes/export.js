@@ -1,7 +1,6 @@
 const router = require('express').Router();
 const db = require('../db');
 const { authenticateToken } = require('../middleware/auth');
-const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -35,33 +34,41 @@ router.get('/notes/:format', authenticateToken, (req, res) => {
 
 router.post('/backup', authenticateToken, (req, res) => {
   const { filename } = req.body;
-
   if (!filename) {
     return res.status(400).json({ error: 'Filename is required' });
+  }
+
+  // Fixed: Validate and sanitize filename
+  const sanitizedFilename = filename.replace(/[^a-zA-Z0-9_-]/g, '');
+  if (sanitizedFilename.length === 0) {
+    return res.status(400).json({ error: 'Invalid filename' });
   }
 
   const notes = db.prepare('SELECT * FROM notes WHERE userId = ?').all(req.user.id);
   const backupData = JSON.stringify(notes, null, 2);
 
-  // Save backup to file
-  const backupPath = `./backups/${filename}.json`;
-  fs.writeFileSync(backupPath, backupData);
+  // Fixed: Use fs operations instead of shell commands
+  const backupPath = path.join(__dirname, '..', 'backups', `${sanitizedFilename}.json`);
+  
+  // Ensure backups directory exists
+  const backupsDir = path.join(__dirname, '..', 'backups');
+  if (!fs.existsSync(backupsDir)) {
+    fs.mkdirSync(backupsDir, { recursive: true });
+  }
 
-  // Create compressed backup for convenience
-  const zipCommand = `zip -j backups/${filename}.zip ${backupPath}`;
-  exec(zipCommand, (error, stdout, stderr) => {
-    if (error) {
-      return res.status(500).json({ error: 'Failed to create backup archive' });
-    }
-
+  try {
+    fs.writeFileSync(backupPath, backupData);
+    
     db.prepare('INSERT INTO export_logs (userId, format, filename) VALUES (?, ?, ?)')
-      .run(req.user.id, 'backup', `${filename}.zip`);
-
+      .run(req.user.id, 'backup', `${sanitizedFilename}.json`);
+    
     res.json({
       message: 'Backup created successfully',
-      filename: `${filename}.zip`
+      filename: `${sanitizedFilename}.json`
     });
-  });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create backup' });
+  }
 });
 
 router.get('/download/:filename', authenticateToken, (req, res) => {
