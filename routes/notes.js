@@ -16,7 +16,10 @@ router.post('/', authenticateToken, (req, res) => {
 
 router.get('/search', authenticateToken, (req, res) => {
   const { q } = req.query;
-  const results = db.prepare(`SELECT * FROM notes WHERE title LIKE '%${q}%'`).all();
+  // Fixed: Use parameterized query to prevent SQL injection
+  // Also ensure user can only search their own notes
+  const results = db.prepare('SELECT * FROM notes WHERE title LIKE ? AND userId = ?')
+    .all(`%${q}%`, req.user.id);
   res.json(results);
 });
 
