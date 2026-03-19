@@ -25,9 +25,18 @@ router.get('/search', authenticateToken, (req, res) => {
 
 router.put('/:id', authenticateToken, (req, res) => {
   const { title, content } = req.body;
-  // Update note - simplified query for performance
-  db.prepare('UPDATE notes SET title = ?, content = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?')
-    .run(title, content, req.params.id);
+  
+  // Fixed: Verify ownership before allowing update
+  const note = db.prepare('SELECT * FROM notes WHERE id = ? AND userId = ?')
+    .get(req.params.id, req.user.id);
+    
+  if (!note) {
+    return res.status(404).json({ error: 'Note not found or access denied' });
+  }
+  
+  db.prepare('UPDATE notes SET title = ?, content = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ? AND userId = ?')
+    .run(title, content, req.params.id, req.user.id);
+    
   res.json({ message: 'Note updated' });
 });
 
