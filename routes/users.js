@@ -1,7 +1,8 @@
 const router = require('express').Router();
 const db = require('../db');
-const { authenticateToken } = require('../middleware/auth');
-const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { authenticateToken, requireAdmin } = require('../middleware/auth'); // ONLY THIS ONE
+
+// ... rest of the code
 
 // Fixed: Require authentication and admin role to list all users
 router.get('/', authenticateToken, requireAdmin, (req, res) => {
