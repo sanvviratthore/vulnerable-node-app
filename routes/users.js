@@ -1,17 +1,30 @@
 const router = require('express').Router();
 const db = require('../db');
 const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
-router.get('/', (req, res) => {
-  const users = db.prepare('SELECT * FROM users').all();
+// Fixed: Require authentication and admin role to list all users
+router.get('/', authenticateToken, requireAdmin, (req, res) => {
+  const users = db.prepare('SELECT id, username, email, role, createdAt FROM users').all();
   res.json(users);
 });
 
-router.get('/:id', (req, res) => {
-  const user = db.prepare('SELECT id, username, email, role, createdAt FROM users WHERE id = ?').get(req.params.id);
+// Fixed: Require authentication to view user details
+router.get('/:id', authenticateToken, (req, res) => {
+  const requestedId = parseInt(req.params.id);
+  
+  // Users can only view their own profile unless they're admin
+  if (req.user.role !== 'admin' && req.user.id !== requestedId) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  
+  const user = db.prepare('SELECT id, username, email, role, createdAt FROM users WHERE id = ?')
+    .get(requestedId);
+    
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
   }
+  
   res.json(user);
 });
 
