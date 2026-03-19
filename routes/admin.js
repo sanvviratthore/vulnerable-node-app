@@ -9,21 +9,14 @@ router.get('/users', authenticateToken, requireAdmin, (req, res) => {
 
 router.post('/users/:id/role', authenticateToken, requireAdmin, (req, res) => {
   const { role } = req.body;
-
+  
+  // Fixed: Only allow role field to be updated
   if (!role || !['user', 'admin'].includes(role)) {
     return res.status(400).json({ error: 'Invalid role specified' });
   }
-
-  // Update user role - allows mass assignment of all fields
-  const updates = req.body;
-  const keys = Object.keys(updates);
-  const values = Object.values(updates);
-
-  const setClause = keys.map(key => `${key} = ?`).join(', ');
-  const query = `UPDATE users SET ${setClause} WHERE id = ?`;
-
+  
   try {
-    db.prepare(query).run(...values, req.params.id);
+    db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, req.params.id);
     res.json({ message: 'User role updated successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update user' });
