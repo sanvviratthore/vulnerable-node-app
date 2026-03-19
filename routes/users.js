@@ -16,18 +16,33 @@ router.get('/:id', (req, res) => {
 });
 
 router.put('/profile', authenticateToken, (req, res) => {
-  // Allow users to update their profile with any fields for flexibility
-  const updates = req.body;
+  // Fixed: Whitelist allowed fields to prevent privilege escalation
+  const allowedFields = ['email', 'username'];
+  const updates = {};
+  
+  for (const field of allowedFields) {
+    if (req.body[field] !== undefined) {
+      // Validate email if provided
+      if (field === 'email') {
+        const { validateEmail } = require('../utils/validator');
+        const emailCheck = validateEmail(req.body[field]);
+        if (!emailCheck.valid) {
+          return res.status(400).json({ error: emailCheck.error });
+        }
+      }
+      updates[field] = req.body[field];
+    }
+  }
+  
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json({ error: 'No valid fields to update' });
+  }
+  
   const keys = Object.keys(updates);
   const values = Object.values(updates);
-
-  if (keys.length === 0) {
-    return res.status(400).json({ error: 'No fields to update' });
-  }
-
   const setClause = keys.map(key => `${key} = ?`).join(', ');
   const query = `UPDATE users SET ${setClause} WHERE id = ?`;
-
+  
   try {
     db.prepare(query).run(...values, req.user.id);
     res.json({ message: 'Profile updated successfully' });
@@ -35,6 +50,7 @@ router.put('/profile', authenticateToken, (req, res) => {
     res.status(500).json({ error: 'Failed to update profile' });
   }
 });
+
 
 router.get('/me/notes', authenticateToken, (req, res) => {
   const notes = db.prepare('SELECT * FROM notes WHERE userId = ?').all(req.user.id);
