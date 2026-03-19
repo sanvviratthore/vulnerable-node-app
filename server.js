@@ -4,8 +4,14 @@ const app = express();
 const corsMiddleware = require('./middleware/cors');
 const requestLogger = require('./middleware/logger');
 const { loginLimiter } = require('./middleware/rateLimit');
+const helmet = require('helmet');
 
 // Security middleware
+app.use(corsMiddleware);
+app.use(express.json());
+app.use(requestLogger);
+// Security headers
+app.use(helmet());
 app.use(corsMiddleware);
 app.use(express.json());
 app.use(requestLogger);
