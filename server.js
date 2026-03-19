@@ -26,8 +26,10 @@ app.use(requestLogger);
 // });
 
 // Routes
+// Routes
 const authRouter = require('./routes/auth');
 app.use('/auth/login', loginLimiter);
+app.use('/auth/register', loginLimiter); // Fixed: Add rate limiting to register
 app.use('/auth', authRouter);
 app.use('/users', require('./routes/users'));
 app.use('/notes', require('./routes/notes'));
