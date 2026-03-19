@@ -73,20 +73,35 @@ router.post('/backup', authenticateToken, (req, res) => {
 
 router.get('/download/:filename', authenticateToken, (req, res) => {
   const { filename } = req.params;
-
-  // Construct file path
-  const filePath = path.join('./backups', filename);
-
-  // Check if file exists and send it
-  if (fs.existsSync(filePath)) {
-    res.download(filePath, filename, (err) => {
-      if (err) {
-        res.status(500).json({ error: 'Failed to download file' });
-      }
-    });
-  } else {
-    res.status(404).json({ error: 'File not found' });
+  
+  // Fixed: Sanitize filename and prevent path traversal
+  const sanitizedFilename = filename.replace(/[^a-zA-Z0-9_.-]/g, '');
+  
+  // Validate no path traversal attempts
+  if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    return res.status(400).json({ error: 'Invalid filename' });
   }
+  
+  // Resolve and validate path is within backups directory
+  const backupsDir = path.resolve(__dirname, '..', 'backups');
+  const filePath = path.resolve(backupsDir, sanitizedFilename);
+  
+  // Ensure resolved path is still within backups directory
+  if (!filePath.startsWith(backupsDir)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  
+  // Verify file exists
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+  
+  // Send file
+  res.download(filePath, sanitizedFilename, (err) => {
+    if (err) {
+      res.status(500).json({ error: 'Failed to download file' });
+    }
+  });
 });
 
 router.get('/logs', authenticateToken, (req, res) => {
